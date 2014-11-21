@@ -1,11 +1,22 @@
 $ = jQuery
 
-if window? and window._gCalFlow_debug? and console?
-  log = console
-  log.debug ?= log.log
-else
-  log = {}
-  log.error = log.warn = log.log = log.info = log.debug = ->
+log = {}
+log.error = log.warn = log.log = log.info = log.debug = ->
+
+if window? and console? and console.log?
+  unless window._gCalFlow_quiet
+    for prio in ['error', 'warn', 'info']
+      log[prio] = ->
+        if console[prio]
+          console[prio].apply console, arguments
+        else
+          console.log.apply console, arguments
+  if window._gCalFlow_debug
+    log.debug = ->
+      if console.debug?
+        console.debug.apply console, arguments
+      else
+        console.log.apply console, arguments
 
 pad_zero = (num, size = 2) ->
   if 10 * (size-1) <= num then return num
@@ -15,6 +26,7 @@ pad_zero = (num, size = 2) ->
   ret.concat num
 
 class gCalFlow
+  @demo_apikey: 'AIzaSyD0vtTUjLXzH4oKCzNRDymL6E3jKBympf0'
   target: null
   template: $("""<div class="gCalFlow">
       <div class="gcf-header-block">
@@ -47,7 +59,7 @@ class gCalFlow
   opts: {
     maxitem: 15
     calid: null
-    apikey: null
+    apikey: @demo_apikey
     mode: 'upcoming'
     feed_url: null
     auto_scroll: true
@@ -125,6 +137,9 @@ class gCalFlow
 
   fetch: ->
     log.debug "Starting ajax call for #{@gcal_url()}"
+    if @opts.apikey == @constructor.demo_apikey
+      log.warn "You are using built-in demo API key! This key is provided for tiny use or demo only. Your access may be limited."
+      log.warn "Please check document and consider to use your own key."
     success_handler = (data) =>
       log.debug "Ajax call success. Response data:", data
       @render_data data, @
@@ -220,7 +235,6 @@ class gCalFlow
           ci.find('.gcf-item-location').html(gmapslink)
         else
           ci.find('.gcf-item-location').text(ent.location)
-        ci.find('.gcf-item-location').text ent.gd$where[0].valueString
         ci.find('.gcf-item-link').attr {href: ent.htmlLink}
         log.debug "formatted item entry:", ci[0]
         items.push ci[0]
@@ -284,7 +298,7 @@ $.fn.gCalFlow = (method) ->
     @each ->
       methods[method].apply $(@), Array.prototype.slice.call(orig_args, 1)
   else if method == 'version'
-    "1.2.7"
+    "3.0.1"
   else
     $.error "Method #{method} does not exist on jQuery.gCalFlow"
 
